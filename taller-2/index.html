@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Taller 2 - Lienzo de modelo de negocio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Layout: herramienta de una columna; arriba la vista general (perfil, datos, avance), abajo el lienzo de 9 bloques en la rejilla clásica; cada bloque abre un panel lateral con las preguntas del perfil. */
+:root{
+  --bg:#F3F6FA; --surface:#FFFFFF; --field:#FFFFFF; --ink:#13213A; --muted:#566479; --line:#D3DBE6;
+  --accent:#003770; --accent-ink:#FFFFFF; --accent-soft:#E2EAF6;
+  --ef:#EAF0F8; --val:#FAF1E3; --core:#E2EAF6; --ok:#1E7A4C; --warn:#9A5B00;
+  --shadow:0 1px 2px rgba(19,33,58,.06),0 6px 20px rgba(19,33,58,.06);
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",system-ui,-apple-system,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#0D1422; --surface:#151F33; --field:#0F1828; --ink:#E5EBF4; --muted:#9AA8BC; --line:#2A3752;
+  --accent:#8DB4EE; --accent-ink:#0D1422; --accent-soft:#1C2C48;
+  --ef:#152339; --val:#272014; --core:#1C2C48; --ok:#5CC28E; --warn:#E3A857;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25); color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+p{margin:0}
+.top{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end;justify-content:space-between}
+.theme{font:600 .86rem/1 var(--f-body);display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;flex:none;align-self:flex-start}
+.theme:hover{border-color:var(--accent)}
+.theme svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.brand{display:flex;flex-direction:column;gap:10px;min-width:0}
+.logo{background:#FFFFFF;border-radius:6px;padding:6px 10px;width:max-content;display:flex}
+.logo img{height:26px;width:auto;display:block}
+.eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-size:clamp(1.6rem,3.4vw,2.3rem);font-weight:700;color:var(--ink)}
+.lead{color:var(--muted);max-width:62ch}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:18px;display:grid;gap:18px;grid-template-columns:minmax(0,1.15fr) minmax(0,1.5fr) minmax(0,1fr)}
+@media (max-width:980px){.panel{grid-template-columns:1fr}}
+.group{display:flex;flex-direction:column;gap:10px;min-width:0}
+.group h2{font-size:1rem;font-weight:600;display:flex;gap:8px;align-items:center}
+.step{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:600 .78rem/1 var(--f-body);flex:none}
+label{font-size:.85rem;font-weight:600;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fields .wide{grid-column:1/-1}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+textarea{resize:vertical;line-height:1.45}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select#perfil{font-weight:600;padding:10px}
+select#perfil.empty{border-color:var(--warn)}
+.hint{font-size:.84rem;color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:600 .92rem/1.2 var(--f-body);border-radius:6px;padding:9px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding-inline:6px;text-decoration:underline;text-underline-offset:3px}
+.status{font-size:.86rem;color:var(--muted);min-height:1.3em}
+.status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+.meter{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.meter span{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+details{font-size:.88rem}
+details summary{cursor:pointer;color:var(--muted)}
+details textarea{margin-top:8px;font-size:.82rem;font-family:ui-monospace,Consolas,monospace}
+
+.canvas-head{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:baseline;justify-content:space-between}
+.canvas-head h2{font-size:1.25rem}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.84rem;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid var(--muted)}
+.canvas{display:grid;gap:8px;grid-template-columns:repeat(10,minmax(0,1fr));
+  grid-template-areas:"aso aso act act pv pv rel rel aud aud" "aso aso rec rec pv pv can can aud aud" "cos cos cos cos cos ing ing ing ing ing";
+  grid-template-rows:minmax(190px,auto) minmax(190px,auto) minmax(150px,auto)}
+.blk{grid-area:var(--a);text-align:left;font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--surface);transition:border-color .15s,transform .15s}
+.blk:hover{border-color:var(--accent);transform:translateY(-1px)}
+.blk.ef{background:var(--ef)} .blk.val{background:var(--val)} .blk.core{background:var(--core);border:2px solid var(--accent)}
+.blk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.blk h3{font-size:1rem;font-weight:700}
+.blk .sub{font-style:italic;color:var(--muted);font-size:.86rem}
+.ord{font:600 .72rem/1 var(--f-body);color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:3px 7px;white-space:nowrap;background:var(--surface)}
+.syn{font-size:.88rem;white-space:pre-line;overflow:hidden;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.syn.empty{color:var(--muted)}
+.prog{margin-top:auto;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:.76rem;color:var(--muted)}
+.prog span{white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--muted)}
+.dot.on{background:var(--ok);border-color:var(--ok)}
+.prog .done{margin-left:auto;color:var(--ok);font-weight:600}
+@media (max-width:760px){
+  .canvas{grid-template-columns:1fr;grid-template-areas:none;grid-template-rows:none}
+  .blk{grid-area:auto;order:var(--o);min-height:120px}
+}
+
+/* Panel lateral */
+.scrim{position:fixed;inset:0;background:rgba(10,16,28,.45);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--surface);z-index:21;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.2);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.d-head{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.d-head h2{font-size:1.4rem}
+.d-head .sub{font-style:italic;color:var(--muted)}
+.d-body{padding:18px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;flex:1}
+.guide{background:var(--accent-soft);border-radius:8px;padding:12px 14px;font-size:.93rem}
+.guide b{display:block;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.chip{display:inline-block;font-size:.8rem;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--accent);color:var(--accent-ink)}
+.q{display:flex;flex-direction:column;gap:6px}
+.q label{color:var(--ink);font-size:.95rem;font-weight:600;display:flex;gap:8px}
+.q label .n{color:var(--accent);flex:none}
+.synbox{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:6px}
+.synbox label{color:var(--ink);font-size:1rem}
+.count{font-size:.8rem;color:var(--muted);text-align:right}
+.count.over{color:var(--warn)}
+.d-foot{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.x{border:none;background:transparent;color:var(--muted);font-size:1.6rem;line-height:1;cursor:pointer;padding:4px 8px;border-radius:6px}
+.nope{padding:20px;display:flex;flex-direction:column;gap:12px}
+
+.only-mobile{display:none}
+@media (max-width:760px),(pointer:coarse){.only-mobile{display:inline-flex}}
+.txtbtns .btn{flex:1 1 auto;justify-content:center}
+.pv{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;gap:10px;
+  padding-top:max(12px,env(safe-area-inset-top,0px));padding-bottom:max(12px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pv-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.pv-bar h2{font-size:1.15rem}
+.pv-msg{font-size:.9rem;color:var(--warn)}
+.pv-msg:empty{display:none}
+.pv-scroll{flex:1;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#FFFFFF;-webkit-overflow-scrolling:touch}
+.pv-scroll{display:flex;align-items:center}
+.pv-scroll.zoom{align-items:flex-start}
+.pv-scroll img{display:block;width:100%;max-width:none;height:auto;flex:none}
+.pv-scroll.zoom img{width:250%}
+.pv-note{font-size:.84rem;color:var(--muted)}
+footer{font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
+footer a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><img src="data:image/png;base64,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" alt="Universidad Nacional de Música"></div>
+      <span class="eyebrow">Programa de Incubación UNM 2026 · Módulo 2 · Modelo</span>
+      <h1>Taller 2 · Lienzo de modelo de negocio</h1>
+      <p class="lead">Elige tu perfil, abre cada bloque y responde las preguntas. Al final de cada bloque escribe una síntesis breve: es lo que aparece en el lienzo y en el PDF del Entregable 2.</p>
+    </div>
+    <button class="theme" id="btnTema" type="button" aria-pressed="false">
+      <svg id="icoTema" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <span id="txtTema">Modo oscuro</span>
+    </button>
+  </header>
+
+  <section class="panel" aria-label="Vista general">
+    <div class="group">
+      <h2><span class="step">1</span>Perfil del proyecto</h2>
+      <div class="field">
+        <label for="perfil">Perfil según tu ubicación en la matriz (E1)</label>
+        <select id="perfil">
+          <option value="">Elige un perfil…</option>
+        </select>
+      </div>
+      <p class="hint" id="perfilHint">Las preguntas de cada bloque se ajustan al perfil. Si cambias de perfil, tus respuestas anteriores se conservan en el perfil donde las escribiste.</p>
+    </div>
+
+    <div class="group">
+      <h2><span class="step">2</span>Datos del lienzo</h2>
+      <div class="fields">
+        <div class="field wide"><label for="proyecto">Nombre del proyecto</label><input id="proyecto" type="text" autocomplete="off" placeholder="Ej.: Ensamble Mixto"></div>
+        <div class="field wide"><label for="integrantes">Diseñado por</label><input id="integrantes" type="text" autocomplete="off" placeholder="Nombres de quienes trabajan el lienzo"></div>
+        <div class="field"><label for="fecha">Fecha</label><input id="fecha" type="date"></div>
+        <div class="field"><label for="iteracion">Iteración n.º</label><input id="iteracion" type="number" min="1" max="20" step="1"></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2><span class="step">3</span>Tu avance</h2>
+      <div class="meter" aria-hidden="true"><span id="meter"></span></div>
+      <p class="hint" id="meterTxt">0 de 9 bloques con síntesis</p>
+      <div class="btns">
+        <button class="btn" id="btnGuardar" type="button">Guardar avance</button>
+        <button class="btn" id="btnCargar" type="button">Cargar avance</button>
+        <input id="archivo" type="file" accept=".json,application/json" hidden>
+      </div>
+      <button class="btn primary" id="btnPdf" type="button">Exportar PDF (A4 horizontal)</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <details id="respaldo">
+        <summary>Guardar o cargar como texto</summary>
+        <p class="hint" style="margin-top:6px"><b>Para guardar:</b> pulsa «Copiar texto» y pégalo en un documento, una nota o un chat contigo. <b>Para recuperar:</b> pulsa «Pegar texto» (o pega en el recuadro) y luego «Cargar texto».</p>
+        <textarea id="txtRespaldo" rows="4" spellcheck="false" aria-label="Avance como texto" placeholder="Aquí aparece o se pega el texto de tu avance."></textarea>
+        <div class="btns txtbtns" style="margin-top:6px">
+          <button class="btn" id="btnCopiar" type="button">Copiar texto</button>
+          <button class="btn" id="btnPegar" type="button">Pegar texto</button>
+          <button class="btn" id="btnBorrarTxt" type="button">Borrar texto</button>
+          <button class="btn primary" id="btnCargarTxt" type="button">Cargar texto</button>
+        </div>
+        <button class="btn ghost" id="btnReset" type="button" style="margin-top:6px">Empezar un lienzo en blanco</button>
+      </details>
+    </div>
+  </section>
+
+  <section aria-labelledby="tLienzo" style="display:flex;flex-direction:column;gap:12px">
+    <div class="canvas-head">
+      <h2 id="tLienzo">Lienzo</h2>
+      <button class="btn primary only-mobile" id="btnPrev" type="button">Previsualizar lienzo</button>
+      <div class="legend">
+        <span><i style="background:var(--ef)"></i>Cómo funciona el proyecto (operación)</span>
+        <span><i style="background:var(--core);border-color:var(--accent)"></i>Propuesta de valor</span>
+        <span><i style="background:var(--val)"></i>A quién llega y cómo retorna (mercado)</span>
+        <span>El número indica el orden sugerido</span>
+      </div>
+    </div>
+    <div class="canvas" id="canvas"></div>
+  </section>
+
+  <footer>
+    <span>Entregable 2 · Modelo de negocio. Envíalo en PDF a incubacion@unm.edu.pe con el nombre E2_[proyecto], antes del Taller 3.</span>
+    <span>Adaptado por la Dirección de Incubadora de Empresas (UNM) del lienzo de Marcelo Pizarro, basado en el Business Model Canvas de Alexander Osterwalder. Licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.es" target="_blank" rel="noopener">CC BY-SA 3.0</a>.</span>
+    <span>Tu avance se guarda automáticamente en este navegador. Para continuar en otro equipo, usa «Guardar avance».</span>
+  </footer>
+</div>
+
+<div class="pv" id="pv" role="dialog" aria-modal="true" aria-labelledby="pvTitle" hidden>
+  <div class="pv-bar">
+    <h2 id="pvTitle">Vista del lienzo</h2>
+    <div class="btns">
+      <button class="btn" id="pvZoom" type="button">Ampliar</button>
+      <button class="btn primary" id="pvClose" type="button">Cerrar</button>
+    </div>
+  </div>
+  <p class="pv-msg" id="pvMsg"></p>
+  <div class="pv-scroll" id="pvScroll"><img id="pvImg" alt="Lienzo de modelo de negocio en formato de bloques"></div>
+  <p class="pv-note">Para guardar la imagen: mantén pulsado sobre ella (celular) o haz clic derecho y elige «Guardar imagen» (computador). Gira el celular para verla más grande.</p>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle" hidden>
+  <div class="d-head">
+    <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+      <span class="eyebrow" id="dOrd"></span>
+      <h2 id="dTitle"></h2>
+      <span class="sub" id="dSub"></span>
+    </div>
+    <button class="x" id="dClose" type="button" aria-label="Cerrar">×</button>
+  </div>
+  <div class="d-body" id="dBody"></div>
+  <div class="d-foot">
+    <button class="btn" id="dPrev" type="button">← Anterior</button>
+    <button class="btn primary" id="dNext" type="button">Siguiente →</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+"use strict";
+const LOGO = "data:image/png;base64,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";
+const PERFILES = {
+  inter:"Intérprete / compositor independiente",
+  doc:"Docente musical",
+  ens:"Ensamble o agrupación artística",
+  soc:"Proyecto educativo o cultural con impacto social",
+  prod:"Producción y/o comercialización de productos"
+};
+const BLOQUES = [
+ {id:"aud",o:1,lado:"val",t:"Audiencia",s:"A quiénes contribuyes",
+  g:"¿Qué grupos te darían su atención y por qué? ¿A quién pretende servir tu modelo?",
+  q:{inter:["¿Quiénes te contratan o pagan por tu música: productores, locales, eventos privados, instituciones, marcas, plataformas o público directo?","¿Quién escucha tu música y quién decide contratarte? ¿Son la misma persona?","¿Qué grupo te da hoy la mayor parte de tus ingresos y cuál quieres que crezca?","¿Dónde está tu público (ciudad, plataformas, circuitos) y qué otros artistas escucha?"],
+     doc:["¿A quién enseñas: niños, jóvenes, adultos, músicos profesionales o aficionados? ¿Con qué nivel y objetivo?","¿Quién decide y paga las clases: el estudiante, sus padres, un colegio o una institución?","¿Qué grupo valora más lo que enseñas y estaría dispuesto a pagar más?","¿Qué instituciones (colegios, municipalidades, academias) podrían contratar tus servicios para un grupo?"],
+     ens:["¿Quién paga por verlos o contratarlos: público de taquilla, organizadores de eventos, festivales, instituciones o empresas?","¿Qué público asiste hoy a sus presentaciones (edad, distrito, gustos) y a cuál quieren llegar?","¿Qué programadores o curadores deciden las fechas en los espacios donde quieren tocar?","¿Tienen públicos distintos según el formato (conciertos, eventos privados, educación, ceremonias)?"],
+     soc:["¿Quiénes son los beneficiarios directos (perfil, edad, número y territorio)?","¿Quién financia o podría financiar el proyecto (Estado, cooperación, empresas, comunidad)? ¿Qué le interesa a cada uno?","¿Qué actores de la comunidad deben participar para que el proyecto tenga sentido?","¿Hay un público adicional que pague (entradas, servicios, productos) y ayude a sostener la parte gratuita?"],
+     prod:["¿Quién compra tu producto y quién lo usa: músicos, estudiantes, coleccionistas, tiendas o instituciones?","¿Qué grupo compra con más frecuencia o en mayor volumen?","¿Vendes al consumidor final, a revendedores o a ambos?","¿Dónde están tus compradores (ciudad, país, plataformas) y cómo eligen qué comprar?"]}},
+ {id:"pv",o:2,lado:"core",t:"Propuesta de valor",s:"Cómo contribuyes",
+  g:"¿Qué ofrece tu proyecto a la sociedad? ¿Cómo atiende las necesidades o intereses de tu audiencia, resuelve sus problemas o alivia sus dolores?",
+  q:{inter:["¿Qué hace única tu propuesta artística: sonido, repertorio, identidad, formato en vivo?","¿Qué le resuelves a quien te contrata: ambientar, convocar público, dar prestigio, crear una obra a medida?","¿Qué servicios ofreces: conciertos, composición por encargo, sesiones de grabación, arreglos, licencias?","¿Por qué elegirte a ti y no a otro artista de perfil parecido?"],
+     doc:["¿Qué logra un estudiante contigo que no lograría solo o en otro lugar?","¿Qué método, enfoque o especialidad te distingue (repertorio, género, edad, tecnología)?","¿Qué formatos ofreces: clases individuales, grupales, virtuales, talleres, preparación para la admisión?","¿Cómo hacen visible el estudiante y su familia el avance logrado?"],
+     ens:["¿Qué experiencia ofrecen que el público no encuentra en otra agrupación?","¿Qué formatos pueden ofrecer: concierto completo, set corto, formato reducido, función didáctica, colaboraciones?","¿Qué valor cultural aporta su repertorio: tradición, fusión, creación propia, recuperación?","¿Qué gana un organizador al programarlos: convocatoria, prestigio, identidad para su evento?"],
+     soc:["¿Qué cambio concreto produce el proyecto en sus beneficiarios?","¿Por qué el arte o la música es la herramienta adecuada para lograr ese cambio?","¿Qué gana un financiador o aliado al apoyar el proyecto: resultados, visibilidad, cumplir su misión?","¿Qué distingue a este proyecto de otras iniciativas parecidas en el territorio?"],
+     prod:["¿Qué necesidad resuelve tu producto o qué deseo satisface?","¿Qué lo diferencia: calidad, diseño, origen, materiales, precio, personalización?","¿Qué valor cultural o de identidad lleva el producto (técnica, tradición, autoría)?","¿Qué recibe el comprador además del producto: garantía, mantenimiento, asesoría, una experiencia?"]}},
+ {id:"can",o:3,lado:"val",t:"Canales",s:"Cómo te conocen y les llega lo que ofreces",
+  g:"¿Cómo conecta tu audiencia con tu propuesta de valor? ¿Cómo te conoce, te evalúa, decide, compra y recibe apoyo después?",
+  q:{inter:["¿Cómo te descubren hoy tu público y quienes te contratan: redes, plataformas de streaming, recomendaciones, presentaciones en vivo?","¿Por dónde llega tu música: escenarios, plataformas digitales, radio, sincronizaciones?","¿Tienes material de presentación (EPK, portafolio, video en vivo) para enviar a programadores?","¿Qué canal te ha traído más contrataciones y cuál quieres probar?"],
+     doc:["¿Cómo te encuentran los estudiantes nuevos: recomendaciones, redes, buscadores, colegios, avisos?","¿Dónde das las clases: a domicilio, en un espacio propio o alquilado, en línea, en una institución aliada?","¿Qué contenido podrías publicar para mostrar tu forma de enseñar?","¿Qué canal te trae a los estudiantes que se quedan más tiempo?"],
+     ens:["¿Cómo se enteran los organizadores y el público de sus presentaciones?","¿En qué espacios, circuitos o festivales se presentan y a cuáles quieren llegar?","¿Usan plataformas digitales para difundir grabaciones o conciertos?","¿Quién gestiona las fechas y con qué material (EPK, rider técnico, videos)?"],
+     soc:["¿Cómo convocas a los beneficiarios: instituciones educativas, líderes comunitarios, gobiernos locales, redes?","¿Dónde se realizan las actividades y cómo llegan los participantes?","¿Cómo comunicas los resultados a financiadores y aliados?","¿Qué canales usas para dar a conocer el proyecto al público general y a los medios?"],
+     prod:["¿Por dónde vendes: tienda física, ferias, redes sociales, plataformas de comercio, tiendas aliadas, pedidos directos?","¿Cómo llega el producto al comprador (entrega, envío, recojo) y cuánto cuesta esa entrega?","¿Cómo conoce tu producto un comprador nuevo?","¿Qué canal te deja mejor margen y cuál te da más ventas?"]}},
+ {id:"rel",o:4,lado:"val",t:"Relación con tu audiencia",s:"Cómo interactúas",
+  g:"¿Qué motivaciones tiene tu audiencia? ¿Qué tipo de relación mantendrás con ella?",
+  q:{inter:["¿Cómo mantienes el contacto con tu público entre presentaciones o lanzamientos?","¿Qué relación tienes con quienes te contratan: puntual, recurrente, de confianza?","¿Tienes una comunidad de seguidores con quienes conversas (redes, lista de correos, grupo)?","¿Qué haces para que quien te contrató una vez vuelva a hacerlo o te recomiende?"],
+     doc:["¿Cómo acompañas al estudiante entre clases: materiales, mensajes, grabaciones?","¿Cómo te comunicas con los padres o con la institución?","¿Qué haces para que el estudiante continúe: metas, audiciones, recitales, certificados?","¿Cómo recoges la opinión de tus estudiantes sobre tus clases?"],
+     ens:["¿Cómo se relacionan con su público antes, durante y después de un concierto?","¿Qué hacen para que los organizadores vuelvan a programarlos?","¿Tienen una comunidad de seguidores activa? ¿Cómo la cuidan?","¿Ofrecen experiencias adicionales: ensayos abiertos, conversatorios, contenidos exclusivos?"],
+     soc:["¿Cómo participan los beneficiarios en las decisiones del proyecto?","¿Cómo mantienes el vínculo con la comunidad cuando termina una actividad o un ciclo?","¿Qué relación tienes con financiadores y aliados: reportes, visitas, reuniones?","¿Cómo conviertes a los participantes en voceros o líderes del proyecto?"],
+     prod:["¿Cómo atiendes al cliente antes y después de la compra: consultas, garantía, reparación?","¿Qué haces para que el cliente vuelva a comprar o te recomiende?","¿Recoges opiniones o reseñas de tus compradores? ¿Cómo las usas?","¿Hay una comunidad alrededor de tu producto (usuarios, músicos, coleccionistas)?"]}},
+ {id:"ing",o:5,lado:"val",t:"Vías de ingreso",s:"Cómo retorna",
+  g:"¿Por dónde llega el dinero? ¿Por qué la gente estaría dispuesta a pagarte o financiarte? ¿Cómo se financiará tu modelo?",
+  q:{inter:["¿Cuáles son hoy tus fuentes de ingreso: cachés, encargos, regalías, plataformas, clases, venta de productos? ¿Cuánto aporta cada una?","¿Cuánto cobras por presentación o por obra y cómo fijas ese precio?","¿Cobras los derechos de autor o conexos que generan tus obras y grabaciones?","¿Qué nueva fuente de ingreso podrías probar en las próximas semanas?"],
+     doc:["¿Cuánto cobras por clase, mes o paquete? ¿Cómo te pagan (efectivo, transferencia, por adelantado)?","¿Cuántos estudiantes necesitas para cubrir tus costos y llegar a tu meta de ingreso mensual?","¿Podrías ofrecer servicios complementarios: talleres intensivos, materiales, cursos grabados?","¿Qué ingresos pierdes en vacaciones o por cancelaciones y cómo los compensas?"],
+     ens:["¿De dónde vienen sus ingresos: taquilla, contratos, fondos, auspicios, venta de grabaciones o productos?","¿Cuánto cobran por fecha y cómo reparten los ingresos entre los integrantes?","¿A qué fondos o convocatorias públicas pueden postular durante el año?","¿Qué fuente de ingreso los haría menos dependientes de las fechas?"],
+     soc:["¿Cuál es la mezcla de financiamiento: fondos públicos, cooperación, donaciones, empresas, ingresos propios?","¿Qué actividades pueden generar ingresos propios sin afectar la misión: servicios, entradas, productos, capacitaciones?","¿Qué convocatorias o fondos encajan con el proyecto y cuándo abren?","¿Por qué alguien estaría dispuesto a financiar este proyecto?"],
+     prod:["¿Cuál es el precio de cada producto y cómo lo calculaste?","¿Cuántas unidades al mes necesitas vender para cubrir tus costos?","¿Tienes ingresos complementarios: reparaciones, personalización, alquiler, talleres?","¿Cómo cobras: al contado, con adelanto, en cuotas, por plataformas de pago?"]}},
+ {id:"rec",o:6,lado:"ef",t:"Recursos clave",s:"Quién eres y qué tienes",
+  g:"¿Qué insumos son indispensables para crear y hacer llegar tu propuesta de valor? ¿Cuántos recursos clave requiere tu modelo?",
+  q:{inter:["¿Qué recursos artísticos tienes: repertorio propio, grabaciones, obras registradas, imagen?","¿Qué equipos o espacios necesitas: instrumentos, sonido, estudio casero, sala de ensayo?","¿Qué habilidades tuyas son centrales y cuáles te faltan (gestión, producción, comunicación)?","¿Cuál es tu red de contactos más valiosa?"],
+     doc:["¿Qué formación, trayectoria o certificación respalda tu enseñanza?","¿Con qué espacio, instrumentos y materiales cuentas para las clases?","¿Tienes un programa, sílabo o método documentado?","¿Qué herramientas digitales usas: plataformas, grabación, partituras?"],
+     ens:["¿Qué integrantes, roles y habilidades son indispensables?","¿Con qué instrumentos, equipos, vestuario y transporte cuentan?","¿Qué repertorio, grabaciones y material audiovisual tienen?","¿Tienen un espacio de ensayo estable? ¿Cuánto les cuesta?"],
+     soc:["¿Qué equipo humano sostiene el proyecto: profesionales, voluntarios, líderes comunitarios?","¿Con qué espacios, instrumentos y materiales cuentas?","¿Qué conocimientos o metodología propia tiene el proyecto?","¿Qué legitimidad tienes en el territorio: trayectoria, confianza, reconocimientos?"],
+     prod:["¿Qué insumos, herramientas y espacio de producción necesitas?","¿Qué conocimientos o técnicas son clave para producir con calidad?","¿Tienes diseños, marca o patentes propias?","¿Cuánto capital necesitas para mantener existencias?"]}},
+ {id:"act",o:7,lado:"ef",t:"Actividades clave",s:"Qué haces",
+  g:"¿Qué actividades son indispensables para poner en marcha tu propuesta de valor y para que tu modelo funcione?",
+  q:{inter:["¿Qué actividades son indispensables: crear, ensayar, grabar, presentarte, difundir, gestionar?","¿Cuántas horas a la semana dedicas a crear y cuántas a gestionar?","¿Qué actividades podrías delegar o compartir?","¿Qué actividad de gestión haces hoy que no te da resultados?"],
+     doc:["¿Qué hay detrás de cada clase: preparar, enseñar, evaluar, coordinar con los padres?","¿Cuánto tiempo dedicas a captar estudiantes y a la administración?","¿Organizas recitales, audiciones o muestras? ¿Qué requiere eso?","¿Cómo actualizas tu formación como docente?"],
+     ens:["¿Qué actividades requiere sostener el ensamble: ensayos, producción de conciertos, gestión de fechas, difusión, administración?","¿Quién se encarga de cada una y cómo se coordinan?","¿Con qué frecuencia ensayan y preparan repertorio nuevo?","¿Qué actividad frena hoy al grupo?"],
+     soc:["¿Cuáles son las actividades centrales: talleres, presentaciones, encuentros, acompañamiento?","¿Qué actividades de gestión requieren: formulación, rendición de cuentas, convocatoria, evaluación?","¿Cómo registras y mides los resultados?","¿Qué actividad, si se detiene, detiene todo el proyecto?"],
+     prod:["¿Cuáles son los pasos para producir una unidad y cuánto tiempo toma?","¿Qué actividades de venta, atención y entrega realizas?","¿Cómo controlas la calidad?","¿Qué actividades podrías encargar a terceros para producir más?"]}},
+ {id:"aso",o:8,lado:"ef",t:"Asociados clave",s:"Quiénes te ayudan",
+  g:"¿Quiénes creen en lo que tu proyecto cree? ¿De quiénes requieres algún recurso valioso? ¿Quiénes serán tus asociados clave?",
+  q:{inter:["¿Quiénes creen en tu proyecto y te ayudan a moverlo: productores, mánagers, músicos invitados, medios?","¿Qué espacios, sellos, distribuidoras o colectivos podrían ser tus aliados?","¿Qué entidades te ayudan a gestionar tus derechos (sociedades de gestión colectiva, Indecopi)?","¿Qué ofreces tú a cambio a cada aliado?"],
+     doc:["¿Qué instituciones podrían ser tus aliadas: colegios, academias, municipalidades, centros culturales?","¿Con qué otros docentes podrías colaborar o compartir estudiantes?","¿Qué proveedores necesitas: tiendas de instrumentos, editoriales, plataformas?","¿Qué ganaría cada aliado con la colaboración?"],
+     ens:["¿Qué productores, espacios, festivales y medios son aliados clave?","¿Con qué artistas o colectivos podrían colaborar?","¿Qué instituciones públicas o privadas apoyan la circulación o la creación?","¿Qué técnicos o proveedores necesitan: sonido, luces, audiovisual, transporte?"],
+     soc:["¿Qué organizaciones comunitarias, educativas o públicas son tus aliadas?","¿Quiénes son o podrían ser tus financiadores?","¿Qué aliados aportan conocimiento, espacios o legitimidad?","¿Cómo formalizas esas alianzas: convenios, cartas de compromiso?"],
+     prod:["¿Quiénes son tus proveedores clave y cuánto dependes de ellos?","¿Qué tiendas, distribuidores o plataformas pueden vender tu producto?","¿Qué artistas o creadores de contenido podrían usar y recomendar tu producto?","¿Con qué artesanos, talleres o diseñadores podrías colaborar?"]}},
+ {id:"cos",o:9,lado:"ef",t:"Estructura de costos",s:"Qué inviertes",
+  g:"¿En qué necesitas invertir para crear y hacer llegar tu propuesta de valor? ¿Cuáles son tus egresos más importantes?",
+  q:{inter:["¿Cuáles son tus costos fijos al mes: sala, equipos, plataformas, transporte?","¿Cuánto cuesta una presentación o una producción: músicos, sonido, traslados?","¿Cuánto vale tu hora de creación y de ensayo? ¿La incluyes en tus costos?","¿Qué inversión necesitas en los próximos meses: grabación, video, equipo?"],
+     doc:["¿Cuáles son tus costos fijos: espacio, instrumentos, internet, plataformas?","¿Qué costos variables tienes por estudiante o por clase: traslado, materiales?","¿Cuánto inviertes en captar estudiantes: publicidad, contenidos?","¿Cuánto vale tu hora y la estás cobrando?"],
+     ens:["¿Cuánto cuesta un mes de funcionamiento: sala de ensayo, transporte, mantenimiento?","¿Cuánto cuesta una fecha y cuánto una producción discográfica o audiovisual?","¿Cómo se paga a los integrantes y a los técnicos?","¿Qué gastos podrían reducir o compartir?"],
+     soc:["¿Cuánto cuesta una actividad o un ciclo: personal, materiales, espacios, traslados, refrigerios?","¿Cuánto cuesta atender a un beneficiario?","¿Qué costos de gestión tienes: formulación, administración, rendición de cuentas?","¿Qué aportes no monetarios recibes (voluntariado, espacios cedidos) y cuánto costarían si los pagaras?"],
+     prod:["¿Cuánto cuesta producir una unidad: materiales, mano de obra, empaque?","¿Cuáles son tus costos fijos: taller, herramientas, servicios?","¿Cuánto cuestan la venta y la entrega: comisiones, envíos, ferias?","¿Cuánto inviertes en existencias y cuánto tardan en venderse?"]}}
+];
+const BY_ID = Object.fromEntries(BLOQUES.map(b=>[b.id,b]));
+const ORDER = BLOQUES.slice().sort((a,b)=>a.o-b.o);
+const KEY = "unm-taller2-lienzo-v1";
+const SYN_MAX = 300;
+const $ = id => document.getElementById(id);
+
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function blank(){return {app:"unm-taller2-lienzo",v:1,perfil:"",proyecto:"",integrantes:"",fecha:today(),iteracion:1,b:{},actualizado:null}}
+function normalize(x){
+  const s=blank(); if(!x||typeof x!=="object") return s;
+  s.perfil = PERFILES[x.perfil]?x.perfil:"";
+  for(const k of ["proyecto","integrantes","fecha"]) if(typeof x[k]==="string") s[k]=x[k].slice(0,300);
+  const it=parseInt(x.iteracion,10); s.iteracion = it>0&&it<100?it:1;
+  if(x.b&&typeof x.b==="object"){
+    for(const b of BLOQUES){const src=x.b[b.id]; if(!src||typeof src!=="object") continue;
+      const dst={s:typeof src.s==="string"?src.s.slice(0,4000):"",r:{}};
+      if(src.r&&typeof src.r==="object") for(const p in PERFILES){ if(Array.isArray(src.r[p])) dst.r[p]=src.r[p].slice(0,8).map(v=>typeof v==="string"?v.slice(0,4000):""); }
+      s.b[b.id]=dst;}
+  }
+  s.actualizado = typeof x.actualizado==="string"?x.actualizado:null;
+  return s;
+}
+let S = blank();
+try{ const raw=localStorage.getItem(KEY); if(raw) S=normalize(JSON.parse(raw)); }catch(e){}
+function persist(){ S.actualizado=new Date().toISOString(); try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){} }
+let tSave=null; function persistSoon(){ clearTimeout(tSave); tSave=setTimeout(()=>{persist();updateMeter();},350); }
+
+function blk(id){ if(!S.b[id]) S.b[id]={s:"",r:{}}; return S.b[id]; }
+function answers(id,p){ const b=blk(id); if(!b.r[p]) b.r[p]=[]; return b.r[p]; }
+function answeredCount(id){ if(!S.perfil) return 0; const a=(S.b[id]&&S.b[id].r[S.perfil])||[]; return a.filter(v=>v&&v.trim()).length; }
+
+// ---------- Vista general ----------
+const sel=$("perfil");
+for(const k in PERFILES){const o=document.createElement("option");o.value=k;o.textContent=PERFILES[k];sel.appendChild(o);}
+function fillHeader(){
+  sel.value=S.perfil; sel.classList.toggle("empty",!S.perfil);
+  $("proyecto").value=S.proyecto; $("integrantes").value=S.integrantes; $("fecha").value=S.fecha; $("iteracion").value=S.iteracion;
+}
+sel.addEventListener("change",()=>{S.perfil=sel.value;sel.classList.toggle("empty",!S.perfil);persist();renderCanvas();
+  setStatus(S.perfil?"Perfil: "+PERFILES[S.perfil]+". Las preguntas de los bloques ya se ajustaron.":"","ok");});
+for(const id of ["proyecto","integrantes","fecha"]) $(id).addEventListener("input",e=>{S[id]=e.target.value;persistSoon();});
+$("iteracion").addEventListener("input",e=>{const n=parseInt(e.target.value,10);if(n>0){S.iteracion=n;persistSoon();}});
+
+function setStatus(msg,kind){const el=$("status");el.textContent=msg||"";el.className="status"+(kind?" "+kind:"");}
+function updateMeter(){
+  const n=BLOQUES.filter(b=>S.b[b.id]&&S.b[b.id].s.trim()).length;
+  $("meter").style.width=(n/9*100)+"%";
+  $("meterTxt").textContent=n+" de 9 bloques con síntesis"+(S.actualizado?" · guardado en este navegador "+fmtTime(S.actualizado):"");
+}
+function fmtTime(iso){try{const d=new Date(iso);return d.toLocaleString("es-PE",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
+
+// ---------- Lienzo ----------
+function renderCanvas(){
+  const c=$("canvas"); c.textContent="";
+  for(const b of BLOQUES){
+    const el=document.createElement("button"); el.type="button";
+    el.className="blk "+b.lado; el.style.setProperty("--a",b.id); el.style.setProperty("--o",b.o);
+    el.setAttribute("aria-label",b.o+". "+b.t+" — "+b.s);
+    const top=document.createElement("div");top.className="blk-top";
+    const tt=document.createElement("div");
+    const h=document.createElement("h3");h.textContent=b.t;
+    const sub=document.createElement("div");sub.className="sub";sub.textContent=b.s;
+    tt.append(h,sub);
+    const ord=document.createElement("span");ord.className="ord";ord.textContent=b.o;
+    top.append(tt,ord);
+    const syn=document.createElement("div");
+    const txt=(S.b[b.id]&&S.b[b.id].s||"").trim();
+    syn.className="syn"+(txt?"":" empty");
+    syn.textContent= txt || (S.perfil?"Abre el bloque para responder las preguntas.":b.g);
+    const prog=document.createElement("div");prog.className="prog";
+    if(S.perfil){
+      const n=answeredCount(b.id), tot=b.q[S.perfil].length;
+      for(let i=0;i<tot;i++){const d=document.createElement("span");d.className="dot"+(i<n?" on":"");prog.appendChild(d);}
+      const l=document.createElement("span");l.textContent=n+"/"+tot+" preguntas";l.style.marginLeft="4px";prog.appendChild(l);
+      if(txt){const ok=document.createElement("span");ok.className="done";ok.textContent="Síntesis lista";prog.appendChild(ok);}
+    } else { const l=document.createElement("span");l.textContent="Elige un perfil para ver las preguntas";prog.appendChild(l); }
+    el.append(top,syn,prog);
+    el.addEventListener("click",()=>openBlock(b.id));
+    c.appendChild(el);
+  }
+  updateMeter();
+}
+
+// ---------- Panel del bloque ----------
+let current=null, lastFocus=null;
+function openBlock(id){
+  lastFocus=document.activeElement; current=id;
+  const b=BY_ID[id];
+  $("dOrd").textContent="Bloque "+b.o+" de 9";
+  $("dTitle").textContent=b.t; $("dSub").textContent=b.s;
+  const body=$("dBody"); body.textContent="";
+  const guide=document.createElement("div");guide.className="guide";
+  const gb=document.createElement("b");gb.textContent="Pregunta guía del bloque";
+  guide.append(gb,document.createTextNode(b.g)); body.appendChild(guide);
+  if(!S.perfil){
+    const box=document.createElement("div");box.className="nope";
+    const p=document.createElement("p");p.textContent="Para ver las preguntas de este bloque, primero elige el perfil de tu proyecto.";
+    const s2=sel.cloneNode(true); s2.id="perfil2"; s2.value=""; s2.setAttribute("aria-label","Perfil del proyecto");
+    s2.addEventListener("change",()=>{S.perfil=s2.value;fillHeader();persist();renderCanvas();openBlock(id);});
+    box.append(p,s2); body.appendChild(box);
+  } else {
+    const chip=document.createElement("span");chip.className="chip";chip.textContent=PERFILES[S.perfil];
+    const cw=document.createElement("div");cw.appendChild(chip);body.appendChild(cw);
+    const arr=answers(id,S.perfil);
+    b.q[S.perfil].forEach((q,i)=>{
+      const w=document.createElement("div");w.className="q";
+      const lab=document.createElement("label");lab.htmlFor="q-"+id+"-"+i;
+      const n=document.createElement("span");n.className="n";n.textContent=(i+1)+".";
+      lab.append(n,document.createTextNode(q));
+      const ta=document.createElement("textarea");ta.id="q-"+id+"-"+i;ta.rows=3;ta.value=arr[i]||"";
+      ta.placeholder="Escribe con datos concretos: cifras, nombres, lugares.";
+      ta.addEventListener("input",()=>{arr[i]=ta.value;persistSoon();});
+      w.append(lab,ta);body.appendChild(w);
+    });
+    const sb=document.createElement("div");sb.className="synbox";
+    const sl=document.createElement("label");sl.htmlFor="syn-"+id;sl.textContent="Síntesis para el lienzo";
+    const sh=document.createElement("p");sh.className="hint";sh.textContent="De 3 a 5 ideas cortas, una por línea. Es lo que se verá en el lienzo y en el PDF.";
+    const st=document.createElement("textarea");st.id="syn-"+id;st.rows=5;st.value=blk(id).s;
+    st.placeholder="• Idea 1\n• Idea 2\n• Idea 3";
+    const cnt=document.createElement("div");cnt.className="count";
+    const upd=()=>{const l=st.value.length;cnt.textContent=l+" / "+SYN_MAX+" caracteres sugeridos";cnt.classList.toggle("over",l>SYN_MAX);};
+    st.addEventListener("input",()=>{blk(id).s=st.value;upd();persistSoon();});
+    upd(); sb.append(sl,sh,st,cnt); body.appendChild(sb);
+  }
+  const idx=ORDER.findIndex(x=>x.id===id);
+  $("dPrev").disabled = idx===0; $("dPrev").style.visibility = idx===0?"hidden":"visible";
+  $("dNext").textContent = idx===ORDER.length-1 ? "Volver al lienzo" : "Siguiente: "+ORDER[idx+1].t+" →";
+  $("scrim").hidden=false; $("drawer").hidden=false; body.scrollTop=0;
+  const first=body.querySelector("textarea,select"); (first||$("dClose")).focus({preventScroll:true});
+}
+function closeBlock(){ if($("drawer").hidden) return; $("drawer").hidden=true;$("scrim").hidden=true; persist(); renderCanvas();
+  const btn=[...document.querySelectorAll(".blk")].find(x=>x.style.getPropertyValue("--a")===current); (btn||lastFocus||document.body).focus&&(btn||lastFocus).focus(); current=null; }
+$("dClose").addEventListener("click",closeBlock); $("scrim").addEventListener("click",closeBlock);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeBlock(); });
+$("dPrev").addEventListener("click",()=>{const i=ORDER.findIndex(x=>x.id===current); if(i>0){persist();openBlock(ORDER[i-1].id);}});
+$("dNext").addEventListener("click",()=>{const i=ORDER.findIndex(x=>x.id===current); if(i<ORDER.length-1){persist();openBlock(ORDER[i+1].id);} else closeBlock();});
+
+// ---------- Guardar y cargar ----------
+const dlPromise = (window.claude && typeof window.claude.use==="function") ? window.claude.use("downloads").catch(()=>null) : Promise.resolve(null);
+function slug(s){return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Za-z0-9]+/g,"").slice(0,40)||"proyecto";}
+let lastCode="";
+async function saveFile(name,blob){
+  lastCode="";
+  const dl = await dlPromise;
+  if(dl){ try{ await dl.save({filename:name,data:blob}); return "saved"; }
+    catch(e){ lastCode=(e&&e.code)||"error"; if(lastCode==="declined") return "declined"; if(lastCode==="rate_limited") return "busy"; return "fail"; } }
+  if(window.claude){ lastCode="sin_descargas"; return "fail"; }
+  const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3000); return "saved";
+}
+function snapshot(){ persist(); return JSON.stringify(S,null,1); }
+function applyLoaded(obj,origen){
+  if(!obj||obj.app!=="unm-taller2-lienzo"){ setStatus("Ese archivo no es un avance de este lienzo. Elige el archivo .json que guardaste desde aquí.","warn"); return; }
+  S=normalize(obj); persist(); fillHeader(); renderCanvas();
+  setStatus("Avance cargado"+(origen?" desde "+origen:"")+": "+(S.proyecto||"proyecto sin nombre")+", iteración "+S.iteracion+".","ok");
+}
+$("btnGuardar").addEventListener("click",async()=>{
+  const name="Taller2_"+slug(S.proyecto)+"_iteracion"+S.iteracion+".json";
+  const r=await saveFile(name,new Blob([snapshot()],{type:"application/json"}));
+  if(r==="saved") setStatus("Guardado: "+name+". Para continuar, usa «Cargar avance» y elige ese archivo.","ok");
+  else if(r==="declined") setStatus("No se guardó el archivo. Tu avance sigue en este navegador.","warn");
+  else if(r==="busy") setStatus("Hay otra descarga pendiente. Inténtalo de nuevo en unos segundos.","warn");
+  else { $("respaldo").open=true; $("txtRespaldo").value=snapshot(); setStatus("Este dispositivo no permite descargar el archivo ("+lastCode+"). Usa «Copiar texto» y guarda ese texto: con él recuperas tu avance.","warn"); }
+});
+$("btnCargar").addEventListener("click",()=>$("archivo").click());
+$("archivo").addEventListener("change",e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ applyLoaded(JSON.parse(rd.result),f.name); }catch(err){ setStatus("No se pudo leer el archivo. Verifica que sea el .json guardado desde este lienzo.","warn"); } e.target.value=""; };
+  rd.readAsText(f);
+});
+$("btnPegar").addEventListener("click",async()=>{
+  const ta=$("txtRespaldo");
+  try{ if(navigator.clipboard&&navigator.clipboard.readText){ const t=await navigator.clipboard.readText(); if(t){ ta.value=t; setStatus("Texto pegado. Pulsa «Cargar texto» para recuperar tu avance.","ok"); return; } } }catch(e){}
+  ta.value=""; ta.focus();
+  setStatus("Pega el texto en el recuadro: mantén pulsado y elige «Pegar» (celular) o usa Ctrl+V (computador). Luego pulsa «Cargar texto».","warn");
+});
+$("txtRespaldo").addEventListener("paste",()=>setTimeout(()=>setStatus("Texto pegado. Pulsa «Cargar texto» para recuperar tu avance.","ok"),0));
+$("btnBorrarTxt").addEventListener("click",()=>{ $("txtRespaldo").value=""; $("txtRespaldo").focus(); setStatus("Recuadro vacío. Tu avance sigue guardado en este navegador.","ok"); });
+$("btnCopiar").addEventListener("click",()=>{
+  const ta=$("txtRespaldo"); ta.value=snapshot();
+  const fallback=()=>{ta.focus();ta.select();setStatus("Texto seleccionado: cópialo con Ctrl+C (o mantén pulsado en el celular).","ok");};
+  try{ navigator.clipboard.writeText(ta.value).then(()=>setStatus("Texto copiado. Pégalo en un documento para guardarlo.","ok"),fallback); }catch(e){fallback();}
+});
+$("btnCargarTxt").addEventListener("click",()=>{ if(!$("txtRespaldo").value.trim()){ setStatus("El recuadro está vacío. Pega primero el texto de tu avance.","warn"); return; } try{ applyLoaded(JSON.parse($("txtRespaldo").value),"texto"); }catch(e){ setStatus("El texto no es un avance válido. Pega el texto completo, desde la primera llave hasta la última.","warn"); } });
+let resetArmed=false,resetT=null;
+$("btnReset").addEventListener("click",()=>{
+  if(!resetArmed){ resetArmed=true; $("btnReset").textContent="Confirmar: borrar todo lo de este navegador"; setStatus("Si no guardaste tu avance, se perderá. Pulsa otra vez para confirmar.","warn");
+    resetT=setTimeout(()=>{resetArmed=false;$("btnReset").textContent="Empezar un lienzo en blanco";},5000); return; }
+  clearTimeout(resetT); resetArmed=false; $("btnReset").textContent="Empezar un lienzo en blanco";
+  S=blank(); persist(); fillHeader(); renderCanvas(); $("txtRespaldo").value=""; setStatus("Lienzo en blanco listo.","ok");
+});
+
+// ---------- PDF A4 horizontal ----------
+function clean(t){ return (t||"").replace(/\r/g,"").replace(/[\u2022\u25CF\u25AA]/g,"-").replace(/[^\x09\x0A\x20-\x7E\u00A0-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2026\u20AC]/g,""); }
+function fmtFecha(s){ if(!s) return ""; const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?m[3]+"/"+m[2]+"/"+m[1]:s; }
+function fitText(doc,text,x,y,w,h,maxFs,minFs){
+  const paras=clean(text).split("\n");
+  for(let fs=maxFs;fs>=minFs;fs-=0.5){
+    doc.setFontSize(fs); const lh=fs*0.3528*1.28;
+    let lines=[]; paras.forEach(p=>{ lines=lines.concat(p.trim()?doc.splitTextToSize(p,w):[""]); });
+    while(lines.length&&!lines[lines.length-1]) lines.pop();
+    if(lines.length*lh<=h || fs-0.5<minFs){
+      const max=Math.floor(h/lh); if(lines.length>max){ lines=lines.slice(0,max); lines[max-1]=lines[max-1].replace(/\s*\S*$/,"")+" …"; }
+      lines.forEach((ln,i)=>doc.text(ln,x,y+fs*0.3528+i*lh)); return;
+    }
+  }
+}
+const C = {ink:[19,33,58],muted:[86,100,121],line:[176,190,208],accent:[0,55,112],ef:[234,240,248],val:[250,241,227],core:[226,234,246]};
+function credit(doc,W,H,page,total){
+  doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(...C.muted);
+  doc.text("Adaptado por la Dirección de Incubadora de Empresas (UNM) del lienzo de Marcelo Pizarro, basado en el Business Model Canvas de Alexander Osterwalder · CC BY-SA 3.0",10,H-6);
+  doc.text("Página "+page+(total?" de "+total:""),W-10,H-6,{align:"right"});
+}
+function buildPdf(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+  const W=297,H=210;
+  // Encabezado
+  try{ doc.addImage(LOGO,"PNG",10,8,32,6.9); }catch(e){}
+  doc.setTextColor(...C.accent); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+  doc.text("Lienzo de modelo de negocio",48,13.2);
+  doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...C.muted);
+  doc.text("Taller 2 · Entregable 2 · Programa de Incubación UNM 2026",48,17.6);
+  const meta=[["Proyecto",S.proyecto||"—"],["Diseñado por",S.integrantes||"—"],["Perfil",S.perfil?PERFILES[S.perfil]:"—"],["Fecha",fmtFecha(S.fecha)||"—"],["Iteración n.º",String(S.iteracion)]];
+  let mx=150; const my=9;
+  const colW=[52,50,0,0,0];
+  doc.setFontSize(6.5);
+  // dos filas de metadatos alineadas a la derecha
+  const rows=[[meta[0],meta[1]],[meta[2],meta[3],meta[4]]];
+  rows.forEach((row,ri)=>{ let x=150; const widths= ri===0?[70,67]:[78,30,29];
+    row.forEach((m,ci)=>{ doc.setFont("helvetica","bold"); doc.setTextColor(...C.muted); doc.text(clean(m[0]).toUpperCase(),x,my+ri*7.5);
+      doc.setFont("helvetica","normal"); doc.setTextColor(...C.ink); doc.setFontSize(8);
+      const v=doc.splitTextToSize(clean(m[1]),widths[ci]-3)[0]; doc.text(v,x,my+3.6+ri*7.5); doc.setFontSize(6.5); x+=widths[ci]; }); });
+  // Rejilla
+  const x0=10,y0=26,gw=277,u=gw/10,r1=55,r2=55,r3=48,gap=1.6;
+  const pos={aso:[0,0,2,2],act:[2,0,2,1],rec:[2,1,2,1],pv:[4,0,2,2],rel:[6,0,2,1],can:[6,1,2,1],aud:[8,0,2,2],cos:[0,2,5,1],ing:[5,2,5,1]};
+  const ry=[y0,y0+r1,y0+r1+r2], rh=[r1,r2,r3];
+  for(const b of BLOQUES){
+    const [c,r,cw,rs]=pos[b.id];
+    const x=x0+c*u+gap/2, y=ry[r]+gap/2, w=cw*u-gap, h=(rs===2?rh[r]+rh[r+1]:rh[r])-gap;
+    const fill=b.lado==="ef"?C.ef:b.lado==="val"?C.val:C.core;
+    doc.setFillColor(...fill); doc.setDrawColor(...(b.lado==="core"?C.accent:C.line)); doc.setLineWidth(b.lado==="core"?0.6:0.25);
+    doc.roundedRect(x,y,w,h,1.6,1.6,"FD");
+    doc.setFont("helvetica","bold"); doc.setFontSize(8.6); doc.setTextColor(...C.accent);
+    doc.text(b.t,x+3,y+5);
+    doc.setFont("helvetica","bold"); doc.setFontSize(7); doc.setTextColor(...C.muted); doc.text(String(b.o),x+w-3,y+5,{align:"right"});
+    doc.setFont("helvetica","italic"); doc.setFontSize(6.8);
+    const subL=doc.splitTextToSize(b.s,w-6).slice(0,2); doc.text(subL,x+3,y+8.6); const top=8.6+subL.length*2.9;
+    doc.setFont("helvetica","normal"); doc.setTextColor(...C.ink);
+    const syn=(S.b[b.id]&&S.b[b.id].s||"").trim();
+    if(syn) fitText(doc,syn,x+3,y+top,w-6,h-top-2,8.5,5.5);
+    else { doc.setTextColor(...C.line); doc.setFontSize(7); doc.text("Sin síntesis",x+3,y+top+3); }
+  }
+  // Respuestas
+  const pages=[];
+  if(S.perfil){
+    doc.addPage(); let y=14;
+    const head=()=>{ doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...C.accent);
+      doc.text("Respuestas por bloque",10,y); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(...C.muted);
+      doc.text(clean((S.proyecto||"Proyecto")+" · "+PERFILES[S.perfil]+" · Iteración "+S.iteracion),W-10,y,{align:"right"}); y+=7; };
+    head();
+    const colX=[10,152], colW=135; let col=0;
+    const need=(hgt)=>{ if(y+hgt>H-12){ if(col===0){col=1;y=21;} else {doc.addPage();y=14;head();col=0;} } };
+    for(const b of ORDER){
+      need(24);
+      doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(...C.accent);
+      doc.text(b.o+". "+b.t+" — "+b.s,colX[col],y); y+=5;
+      const arr=(S.b[b.id]&&S.b[b.id].r[S.perfil])||[];
+      b.q[S.perfil].forEach((q,i)=>{
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.6); doc.setTextColor(...C.ink);
+        const ql=doc.splitTextToSize(clean((i+1)+". "+q),colW); need(ql.length*3.3+4);
+        doc.text(ql,colX[col],y); y+=ql.length*3.3;
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.6);
+        const ans=(arr[i]||"").trim();
+        if(!ans){ doc.setTextColor(...C.muted); doc.text("Sin respuesta",colX[col]+2,y+0.4); y+=4.6; }
+        else { doc.setTextColor(...C.ink); const al=[]; clean(ans).split("\n").forEach(p=>al.push(...(p.trim()?doc.splitTextToSize(p,colW-2):[""])));
+          for(const ln of al){ need(3.4); doc.text(ln,colX[col]+2,y+0.4); y+=3.4; } y+=1.4; }
+      });
+      y+=3;
+    }
+  }
+  const total=doc.getNumberOfPages();
+  for(let p=1;p<=total;p++){ doc.setPage(p); credit(doc,W,H,p,total); }
+  return doc;
+}
+$("btnPdf").addEventListener("click",async()=>{
+  if(!window.jspdf){ setStatus("No se cargó el generador de PDF. Revisa tu conexión y recarga la página.","warn"); return; }
+  if(!S.perfil) setStatus("Generando el PDF sin perfil: solo incluirá el lienzo, sin las respuestas.","warn");
+  let blob; try{ blob=buildPdf().output("blob"); }catch(e){ setStatus("No se pudo generar el PDF. Inténtalo de nuevo.","warn"); return; }
+  const name="E2_"+slug(S.proyecto)+"_iteracion"+S.iteracion+".pdf";
+  const r=await saveFile(name,blob);
+  if(r==="saved") setStatus("PDF listo: "+name+". Envíalo a incubacion@unm.edu.pe.","ok");
+  else if(r==="declined") setStatus("No se descargó el PDF.","warn");
+  else if(r==="busy") setStatus("Hay otra descarga pendiente. Inténtalo de nuevo en unos segundos.","warn");
+  else { setStatus("Este dispositivo no permite descargar el PDF ("+lastCode+"). Te mostramos el lienzo como imagen para guardarlo.","warn");
+    openPreview("No se pudo descargar el PDF en este dispositivo. Guarda esta imagen del lienzo y envíala a incubacion@unm.edu.pe junto con el texto de tu avance (sección «Guardar o cargar como texto»)."); }
+});
+
+// ---------- Vista previa del lienzo (imagen) ----------
+const logoImg=new Image(); const logoReady=new Promise(r=>{logoImg.onload=()=>r(true);logoImg.onerror=()=>r(false);}); logoImg.src=LOGO;
+const HEX={ink:"#13213A",muted:"#566479",line:"#B0BED0",accent:"#003770",ef:"#EAF0F8",val:"#FAF1E3",core:"#E2EAF6",empty:"#9AA8BC"};
+function wrapLines(g,text,maxW){
+  const out=[];
+  String(text).split("\n").forEach(par=>{
+    if(!par.trim()){ out.push(""); return; }
+    let line="";
+    par.split(/\s+/).forEach(w=>{ if(!w) return;
+      const t=line?line+" "+w:w;
+      if(g.measureText(t).width<=maxW || !line){ if(g.measureText(w).width>maxW && !line){ let chunk=""; for(const ch of w){ if(g.measureText(chunk+ch).width>maxW){ out.push(chunk); chunk=ch; } else chunk+=ch; } line=chunk; } else line=t; }
+      else { out.push(line); line=w; } });
+    if(line) out.push(line);
+  });
+  while(out.length&&!out[out.length-1]) out.pop();
+  return out;
+}
+function rrect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.lineTo(x+w-r,y); g.quadraticCurveTo(x+w,y,x+w,y+r); g.lineTo(x+w,y+h-r); g.quadraticCurveTo(x+w,y+h,x+w-r,y+h); g.lineTo(x+r,y+h); g.quadraticCurveTo(x,y+h,x,y+h-r); g.lineTo(x,y+r); g.quadraticCurveTo(x,y,x+r,y); g.closePath(); }
+async function lienzoCanvas(){
+  await logoReady;
+  const k=8, W=297, H=210;
+  const cv=document.createElement("canvas"); cv.width=W*k; cv.height=H*k;
+  const g=cv.getContext("2d"); g.scale(k,k);
+  const FONT='"Source Sans 3",Helvetica,Arial,sans-serif';
+  const font=(pt,w,it)=>{ g.font=(it?"italic ":"")+(w||400)+" "+(pt*0.3528)+"px "+FONT; };
+  g.fillStyle="#FFFFFF"; g.fillRect(0,0,W,H);
+  try{ g.drawImage(logoImg,10,8,32,6.9); }catch(e){}
+  g.fillStyle=HEX.accent; font(15,700); g.fillText("Lienzo de modelo de negocio",48,13.2);
+  g.fillStyle=HEX.muted; font(7.5); g.fillText("Taller 2 · Entregable 2 · Programa de Incubación UNM 2026",48,17.6);
+  const rows=[[["Proyecto",S.proyecto||"—"],["Diseñado por",S.integrantes||"—"]],[["Perfil",S.perfil?PERFILES[S.perfil]:"—"],["Fecha",fmtFecha(S.fecha)||"—"],["Iteración n.º",String(S.iteracion)]]];
+  rows.forEach((row,ri)=>{ let x=150; const widths=ri===0?[70,67]:[78,30,29];
+    row.forEach((m,ci)=>{ g.fillStyle=HEX.muted; font(6.5,700); g.fillText(m[0].toUpperCase(),x,9+ri*7.5);
+      g.fillStyle=HEX.ink; font(8); g.fillText((wrapLines(g,m[1],widths[ci]-3)[0]||""),x,12.6+ri*7.5); x+=widths[ci]; }); });
+  const x0=10,y0=26,u=277/10,rh=[55,55,48],gap=1.6, ry=[y0,y0+55,y0+110];
+  const pos={aso:[0,0,2,2],act:[2,0,2,1],rec:[2,1,2,1],pv:[4,0,2,2],rel:[6,0,2,1],can:[6,1,2,1],aud:[8,0,2,2],cos:[0,2,5,1],ing:[5,2,5,1]};
+  for(const b of BLOQUES){
+    const [c,r,cw,rs]=pos[b.id];
+    const x=x0+c*u+gap/2, y=ry[r]+gap/2, w=cw*u-gap, h=(rs===2?rh[r]+rh[r+1]:rh[r])-gap;
+    rrect(g,x,y,w,h,1.6); g.fillStyle=b.lado==="ef"?HEX.ef:b.lado==="val"?HEX.val:HEX.core; g.fill();
+    g.lineWidth=b.lado==="core"?0.6:0.25; g.strokeStyle=b.lado==="core"?HEX.accent:HEX.line; g.stroke();
+    g.fillStyle=HEX.accent; font(8.6,700); g.fillText(b.t,x+3,y+5);
+    g.fillStyle=HEX.muted; font(7,700); g.textAlign="right"; g.fillText(String(b.o),x+w-3,y+5); g.textAlign="left";
+    font(6.8,400,true); const sub=wrapLines(g,b.s,w-6).slice(0,2); sub.forEach((l,i)=>g.fillText(l,x+3,y+8.6+i*2.9));
+    const top=8.6+sub.length*2.9;
+    const syn=(S.b[b.id]&&S.b[b.id].s||"").trim();
+    if(!syn){ g.fillStyle=HEX.empty; font(7); g.fillText("Sin síntesis",x+3,y+top+3); continue; }
+    g.fillStyle=HEX.ink;
+    const availH=h-top-2;
+    for(let fs=8.5;fs>=5.5;fs-=0.5){
+      font(fs); const lh=fs*0.3528*1.28; let lines=wrapLines(g,syn,w-6);
+      if(lines.length*lh<=availH || fs-0.5<5.5){
+        const max=Math.floor(availH/lh); if(lines.length>max){ lines=lines.slice(0,max); lines[max-1]=lines[max-1].replace(/\s*\S*$/,"")+" …"; }
+        lines.forEach((ln,i)=>g.fillText(ln,x+3,y+top+fs*0.3528+i*lh)); break;
+      }
+    }
+  }
+  g.fillStyle=HEX.muted; font(6.5);
+  g.fillText("Adaptado por la Dirección de Incubadora de Empresas (UNM) del lienzo de Marcelo Pizarro, basado en el Business Model Canvas de Alexander Osterwalder · CC BY-SA 3.0",10,H-6);
+  return cv;
+}
+let pvLast=null;
+async function openPreview(msg){
+  persist();
+  $("pvMsg").textContent=msg||"";
+  $("pvScroll").classList.remove("zoom"); $("pvZoom").textContent="Ampliar";
+  try{ const cv=await lienzoCanvas(); $("pvImg").src=cv.toDataURL("image/png"); }
+  catch(e){ setStatus("No se pudo generar la vista del lienzo.","warn"); return; }
+  pvLast=document.activeElement; $("pv").hidden=false; $("pvClose").focus();
+}
+function closePreview(){ if($("pv").hidden) return; $("pv").hidden=true; if(pvLast&&pvLast.focus) pvLast.focus(); }
+$("btnPrev").addEventListener("click",()=>openPreview(""));
+$("pvClose").addEventListener("click",closePreview);
+$("pvZoom").addEventListener("click",()=>{ const z=$("pvScroll").classList.toggle("zoom"); $("pvZoom").textContent=z?"Ajustar":"Ampliar"; });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePreview(); });
+
+
+const THEME_KEY="unm-taller2-tema";
+const MOON='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>';
+const SUN='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme",t);
+  const dark=t==="dark";
+  $("txtTema").textContent=dark?"Modo claro":"Modo oscuro";
+  $("icoTema").innerHTML=dark?SUN:MOON;
+  $("btnTema").setAttribute("aria-pressed",String(dark));
+  $("btnTema").setAttribute("aria-label",dark?"Cambiar a modo claro":"Cambiar a modo oscuro");
+}
+let tema="light"; try{ if(localStorage.getItem(THEME_KEY)==="dark") tema="dark"; }catch(e){}
+applyTheme(tema);
+$("btnTema").addEventListener("click",()=>{ tema= tema==="dark"?"light":"dark"; applyTheme(tema); try{localStorage.setItem(THEME_KEY,tema)}catch(e){} });
+fillHeader(); renderCanvas();
+if(S.actualizado) setStatus("Recuperamos tu avance guardado en este navegador.","ok");
+})();
+</script>
+
+</body>
+</html>
